@@ -586,3 +586,100 @@ git config --global --unset-all include.path
 > “Nada global. Todo declarativo, reproducible, portable, controlado por ti.”
 
 ---
+## 8. Validación — Neovim Declarativo (Home Manager)
+
+📍 **Objetivo**  
+Confirmar que Neovim, junto con sus herramientas de soporte (`ripgrep`, `fd`, `lazygit`, `tree-sitter`),  
+se encuentra instalado y disponible dentro del entorno declarativo gestionado por Home Manager.
+
+---
+
+### 1. Verificar versiones y rutas
+
+```bash
+which nvim | tee -a ~/nix-setup-validation.log
+nvim --version | head -n 3 | tee -a ~/nix-setup-validation.log
+
+which rg | tee -a ~/nix-setup-validation.log
+rg --version | tee -a ~/nix-setup-validation.log
+
+which fd | tee -a ~/nix-setup-validation.log
+fd --version | tee -a ~/nix-setup-validation.log
+
+which lazygit | tee -a ~/nix-setup-validation.log
+lazygit --version | tee -a ~/nix-setup-validation.log || true
+```
+
+🖥️ **Salida esperada (ejemplo):**
+
+```
+/Users/<usuario>/.nix-profile/bin/nvim
+NVIM v0.10.x
+
+/Users/<usuario>/.nix-profile/bin/rg
+ripgrep 14.1.1
+
+/Users/<usuario>/.nix-profile/bin/fd
+fd 10.3.0
+
+/Users/<usuario>/.nix-profile/bin/lazygit
+commit=, build date=, build source=nix, version=0.55.1, os=darwin, arch=arm64, git version=2.51.0
+```
+
+**Interpretación**
+- Los binarios provienen de `~/.nix-profile/bin`, no de `/usr/bin`.
+- Cada herramienta fue declarada en `flake.nix`.
+- Todo se ejecuta desde Nix Store (`/nix/store/...`).
+
+---
+
+#### Validación adicional — Corrección del error `not found` (rg, fd, lazygit, tree-sitter)
+
+Durante la validación inicial se detectó que las herramientas de soporte (`rg`, `fd`, `lazygit`, `tree-sitter`)  
+no estaban presentes en el perfil del usuario (`~/.nix-profile/bin`), mostrando errores como:
+
+```
+zsh: command not found: rg
+```
+
+📍 **Diagnóstico**
+- Los binarios se declararon únicamente en `programs.neovim.extraPackages`.
+- En algunas versiones de Home Manager, esos paquetes **no se exportan al PATH global**.
+
+📍 **Solución**
+Añadir los mismos paquetes al bloque `home.packages` dentro del módulo de Home Manager, por ejemplo:
+
+```nix
+home.packages = with pkgs; [
+  git
+  git-lfs
+  ripgrep
+  fd
+  tree-sitter
+  lazygit
+];
+```
+
+📍 **Validación tras aplicar Home Manager y recargar sesión**
+
+```bash
+ls -l ~/.nix-profile/bin/{rg,fd,lazygit,tree-sitter} | tee -a ~/nix-setup-validation.log
+which rg | tee -a ~/nix-setup-validation.log
+which fd | tee -a ~/nix-setup-validation.log
+which lazygit | tee -a ~/nix-setup-validation.log
+```
+
+🖥️ **Salida esperada (ejemplo real validado):**
+```
+/Users/<usuario>/.nix-profile/bin/rg -> /nix/store/...-ripgrep-14.1.1/bin/rg
+/Users/<usuario>/.nix-profile/bin/fd -> /nix/store/...-fd-10.3.0/bin/fd
+/Users/<usuario>/.nix-profile/bin/lazygit -> /nix/store/...-lazygit-0.55.1/bin/lazygit
+/Users/<usuario>/.nix-profile/bin/tree-sitter -> /nix/store/...-tree-sitter-0.25.6/bin/tree-sitter
+```
+
+ **Conclusión**
+Los binarios ahora viven bajo el perfil declarativo (`~/.nix-profile/bin`),  
+gestionados por Nix, y el entorno funciona conforme a los principios del sistema:
+
+> Nada global.  
+> Todo declarativo, reproducible, portable, controlado por ti.

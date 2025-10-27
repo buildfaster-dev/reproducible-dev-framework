@@ -1197,3 +1197,142 @@ En otra Mac, aplicas la misma configuración y obtienes:
 Nada global.  
 Todo declarativo, reproducible, portable, controlado por ti.
 
+## 6.4 Neovim — Editor reproducible y personal declarativo
+
+### Propósito narrativo  
+El editor es donde tus ideas se vuelven código.  
+En este punto no se trata solo de escribir, sino de crear un espacio de trabajo coherente con tu filosofía.  
+
+> “Neovim es la extensión natural de tu mente técnica;  
+> su configuración no se instala, se declara.”
+
+---
+
+### Propósito técnico  
+El objetivo es instalar **Neovim** en modo declarativo usando **Home Manager**,  
+dejando que los *toolchains* y LSPs se declaren más adelante a nivel proyecto.  
+Tu editor siempre existirá, pero sus capacidades se adaptarán al contexto de cada `devShell`.
+
+---
+
+### Paso a paso
+
+#### 1. Declarar Neovim en Home Manager
+
+Edita tu `flake.nix` en `~/dev/hm/` y dentro del bloque principal agrega:
+
+```nix
+programs.neovim = {
+  enable = true;
+  viAlias = true;
+  vimAlias = true;
+  withNodeJs = true;
+  withPython3 = true;
+  withRuby = false;
+
+  extraPackages = with pkgs; [
+    ripgrep
+    fd
+    tree-sitter
+    lazygit
+  ];
+};
+```
+
+Esto habilita Neovim y añade utilidades clave que lo complementan:
+- `ripgrep`: búsqueda de texto ultra rápida  
+- `fd`: búsqueda de archivos  
+- `lazygit`: gestión visual de Git desde terminal  
+- `tree-sitter`: resaltado y análisis de sintaxis avanzado  
+
+---
+
+#### 2. Establecer Neovim como editor por defecto
+
+Asegura que las variables de entorno reflejen tu decisión declarativa:
+
+```nix
+home.sessionVariables = {
+  EDITOR = "nvim";
+  VISUAL = "nvim";
+};
+```
+
+---
+
+#### 3. Aplicar y validar instalación
+
+Ejecuta:
+
+```bash
+nix run home-manager/master -- switch --flake ~/dev/hm#<usuario>
+exec $SHELL -l
+nvim --version | head -n 3
+```
+
+🖥️ **Salida esperada:**
+```
+NVIM v0.10.x
+Build type: Release
+...
+```
+
+Si el editor abre correctamente con `nvim`, estás trabajando con una versión declarada, reproducible y portátil.
+
+---
+
+#### Nota técnica — Solución al error `command not found` (rg, fd, lazygit, tree-sitter)
+
+Durante la validación, puede ocurrir que los binarios de soporte (`ripgrep`, `fd`, `lazygit`, `tree-sitter`)  
+no aparezcan en el PATH aunque estén declarados en `programs.neovim.extraPackages`.
+
+📍 **Causa**  
+En ciertas combinaciones de `nixpkgs` + `home-manager`, los paquetes definidos en  
+`programs.neovim.extraPackages` se exponen únicamente al runtime interno de Neovim,  
+pero no al perfil de usuario (`~/.nix-profile/bin`).
+
+📍 **Síntomas**  
+Ejecutar estos comandos produce errores:
+
+```bash
+which rg
+rg --version
+# salida: rg not found
+```
+
+📍 **Solución estable**  
+Declarar estas herramientas también en el bloque `home.packages`,  
+de modo que queden disponibles de forma global en tu sesión.
+
+Ejemplo:
+
+```nix
+home.packages = with pkgs; [
+  git
+  git-lfs   # opcional
+
+  # herramientas CLI disponibles siempre
+  ripgrep
+  fd
+  tree-sitter
+  lazygit
+];
+```
+
+📍 **Resultado esperado tras aplicar y recargar sesión**
+
+```bash
+which rg
+/Users/<usuario>/.nix-profile/bin/rg
+rg --version
+ripgrep 14.1.1
+```
+
+Esto confirma que los binarios provienen del Nix Store y que tu entorno  
+ya incluye un toolbelt declarativo y reproducible.
+
+**Interpretación narrativa**
+> Este ajuste no rompe la filosofía, la refuerza.  
+> No estás “instalando globalmente”; estás declarando tus herramientas base,  
+> las que te acompañan en cualquier proyecto.  
+> Así, tu editor no solo existe dentro de Nix, sino contigo.
