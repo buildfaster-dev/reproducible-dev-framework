@@ -416,142 +416,173 @@ el entorno se autoactiva sin que tengas que ejecutar nada.
 
 ---
 
----
+## 7. Validación — Git Declarativo (Home Manager)
 
-## 7️⃣ Validar ASDF declarativo (Home Manager + aislamiento por proyecto)
-
-### 🎯 Propósito
-Verificar que **ASDF** fue instalado y configurado de forma **declarativa** con **Home Manager**,  
-que el binario está en el **Nix Store** (`/nix/store/...`) y que no existe contaminación global  
-(`~/.asdf` vacío o sin uso).  
-
-Este paso valida la capa personal (Home Manager) antes de usar ASDF dentro de proyectos.
+### 🧩 Objetivo de la validación
+Verificar que **Git** se haya instalado correctamente y esté gestionado de forma **declarativa** a través de **Home Manager**, priorizando el binario de Nix sobre el del sistema y confirmando que la configuración global y los archivos gestionados estén activos.
 
 ---
 
-### ⚙️ Validaciones paso a paso
+### 7.1 Verificar binario activo y PATH
 
-#### 7.1 Confirmar directorio de configuración de Home Manager
 ```bash
-cd ~/dev/hm
-pwd | tee -a ~/nix-setup-validation.log
+which -a git | tee -a ~/nix-setup-validation.log
+git --version | tee -a ~/nix-setup-validation.log
 ```
+
 🖥️ **Salida esperada:**
 ```
-/Users/<usuario>/dev/hm
+/Users/<usuario>/.nix-profile/bin/git
+/usr/bin/git
+git version 2.51.0
+```
+
+> Si `/usr/bin/git` aparece primero o si la versión es “Apple Git-154”, revisa el bloque `home.sessionPath` y `programs.zsh.initContent` en tu flake de Home Manager.
+
+---
+
+### 7.2 Confirmar configuración global declarativa
+
+```bash
+git config --global --list | sort | tee -a ~/nix-setup-validation.log
+```
+
+🖥️ **Salida esperada (ejemplo resumido):**
+```
+user.name=Tu Nombre
+user.email=tu.email@dominio.com
+init.defaultbranch=main
+pull.ff=only
+push.default=simple
+credential.helper=osxkeychain
+core.editor=nvim
+core.excludesfile=/Users/<usuario>/.config/git/ignore
+```
+
+✅ Confirma que:
+- `user.name` y `user.email` sean los declarados.  
+- `core.editor=nvim` si lo configuraste en tu flake.  
+- `core.excludesfile` apunte a `~/.config/git/ignore`.
+
+---
+
+### 7.3 Validar archivo global de ignore gestionado por Home Manager
+
+```bash
+git config --global --get core.excludesFile | tee -a ~/nix-setup-validation.log
+test -f ~/.config/git/ignore && echo "✅ Ignore file present" || echo "❌ Missing ignore file" | tee -a ~/nix-setup-validation.log
+```
+
+🖥️ **Salida esperada:**
+```
+/Users/<usuario>/.config/git/ignore
+✅ Ignore file present
+```
+
+El contenido de ese archivo debe ser el generado por Home Manager (sin errores de sintaxis).  
+Puedes revisarlo con:
+
+```bash
+head -n 10 ~/.config/git/ignore
 ```
 
 ---
 
-#### 7.2 Inspeccionar el bloque ASDF declarado en `flake.nix`
+### 7.4 Validar integración de Delta (diffs mejorados)
+
 ```bash
-grep -A 8 "asdf" flake.nix | tee -a ~/nix-setup-validation.log
+delta --version | tee -a ~/nix-setup-validation.log
+git diff --color | head -n 20 | tee -a ~/nix-setup-validation.log
 ```
+
 🖥️ **Salida esperada (ejemplo):**
 ```
-home.packages = [ pkgs.asdf-vm ];
-
-programs.zsh = {
-  enable = true;
-  initContent = ''
-    . ${pkgs.asdf-vm}/share/asdf-vm/asdf.sh
-    fpath+=(${pkgs.asdf-vm}/share/zsh/site-functions)
-  '';
-};
+delta 0.17.x
+# Diferencias coloreadas con side-by-side activado
 ```
+
+Si `delta` no está disponible, verifica que esté incluido en `home.packages` o dentro del bloque `programs.delta`.
 
 ---
 
-#### 7.3 Aplicar cambios y recargar sesión
+### 7.5 Confirmar alias de Git activos
+
 ```bash
-nix run home-manager/master -- switch --flake ~/dev/hm#$(whoami) 2>&1 | tee -a ~/nix-setup-validation.log
-exec $SHELL -l
+git config --global --get-regexp alias | tee -a ~/nix-setup-validation.log
 ```
-🖥️ **Salida esperada (fragmento):**
+
+🖥️ **Salida esperada (ejemplo):**
 ```
-Activando checkFilesChanged
-Activando linkGeneration
-Creando links simbólicos en /Users/<usuario>
-Activando setupLaunchAgents
+alias.co checkout
+alias.br branch
+alias.st status -sb
+alias.ci commit
+alias.ca commit --amend
+alias.lg log --graph --decorate --oneline --all
+alias.undo reset --soft HEAD~1
 ```
+
+> Si los alias no aparecen, revisa que el bloque de `programs.git.settings.alias` esté correctamente definido y sin errores de indentación.
 
 ---
 
-#### 7.4 Validar binario y función de shell
+### 7.6 Validar persistencia tras reinicio de sesión
+
+Cierra la sesión de tu terminal y ábrela nuevamente (WezTerm o iTerm).  
+Luego ejecuta:
+
 ```bash
-which asdf | tee -a ~/nix-setup-validation.log
-asdf --version | tee -a ~/nix-setup-validation.log
-type -a asdf | tee -a ~/nix-setup-validation.log
-```
-🖥️ **Salida esperada (ejemplo real):**
-```
-/Users/<usuario>/.nix-profile/bin/asdf
-v0.15.0
-asdf is a shell function from /nix/store/...-asdf-vm-0.15.0/share/asdf-vm/asdf.sh
-asdf is /nix/store/...-asdf-vm-0.15.0/share/asdf-vm/bin/asdf
+which -a git | tee -a ~/nix-setup-validation.log
+git --version | tee -a ~/nix-setup-validation.log
 ```
 
-> 💡 La presencia de `asdf () { ... }` y las rutas dentro de `/nix/store/...asdf-vm...`
-> confirman que ASDF se está gestionando de manera declarativa por Home Manager
-> y no mediante instalación manual o global.
-
----
-
-#### 7.5 Verificar que no existe contaminación global
-```bash
-test -d ~/.asdf && echo "⚠️ Existe ~/.asdf (revisar)" || echo "✅ Sin ~/.asdf global"
-```
 🖥️ **Salida esperada:**
 ```
-✅ Sin ~/.asdf global
+/Users/<usuario>/.nix-profile/bin/git
+/usr/bin/git
+git version 2.51.0
 ```
+
+Esto confirma que Home Manager mantiene el PATH y el binario de Nix como prioridad incluso tras reiniciar la sesión.
 
 ---
 
-#### 7.6 Confirmar aislamiento por proyecto (solo referencia)
-> Aún no se crea el proyecto `asdf-demo`, pero dejamos lista la variable de entorno
-> para validar más adelante el aislamiento.
+### 7.7 Validar que no existan configuraciones heredadas conflictivas
 
 ```bash
-echo ${ASDF_DATA_DIR:-unset} | tee -a ~/nix-setup-validation.log
+git config --global --list --show-origin | grep -i include | tee -a ~/nix-setup-validation.log
 ```
+
 🖥️ **Salida esperada:**
 ```
-unset
+# (sin resultados)
+```
+
+Si aparece algo como `include.path=~/.config/git/ignore`, elimínalo con:
+
+```bash
+git config --global --unset-all include.path
 ```
 
 ---
 
-### 🧩 Resultado esperado
-| Validación | Estado |
-|-------------|---------|
-| `asdf` binario desde `/nix/store` | ✅ |
-| Declaración presente en `flake.nix` de Home Manager | ✅ |
-| Sin `~/.asdf` global | ✅ |
-| Preparado para aislamiento por proyecto (`ASDF_DATA_DIR`) | ✅ |
+### Resultado esperado
 
-> “ASDF se convierte en una herramienta que recuerda lo que usas,  
-> pero no ensucia lo que no tocas. Todo vive en tu sistema declarativo.”
-
----
-
-## 8️⃣ Placeholder — Primer devShell funcional
-
-### 🔹 Contexto
-Este paso se ejecutará **una vez completada la instalación declarativa**
-de las herramientas personales (Neovim, Zellij, WezTerm, Git) en Home Manager.
-
-Solo se deja la estructura base para continuidad del flujo de validación.
+| Validación | Estado | Descripción |
+|-------------|---------|-------------|
+| Binario Git de Nix activo (`which -a git`) | ✅ | Prioriza el binario declarativo sobre Apple Git. |
+| Configuración global aplicada (`user.name`, `editor`, `branch`) | ✅ | Refleja los valores definidos en Home Manager. |
+| Archivo de ignore gestionado por HM | ✅ | Existe y está correctamente vinculado. |
+| Delta activo y diffs coloreados | ✅ | Mejoras visuales aplicadas. |
+| Alias funcionales (`git lg`, `git undo`, etc.) | ✅ | Alias disponibles sin configuración manual. |
+| PATH persistente tras reinicio | ✅ | Home Manager mantiene el entorno reproducible. |
+| Sin includes heredados | ✅ | No existen conflictos ni configuraciones previas. |
 
 ---
 
-### 🧩 Próximos pasos (planificados)
-| Próximo paso | Descripción |
-|---------------|--------------|
-| **8️⃣** | Crear y validar el primer `devShell` reproducible (con Just y toolchains específicos por proyecto). |
-| **9️⃣** | Ejecutar la validación cruzada del entorno completo. |
-
-> Por ahora, cierra la sesión o abre una nueva ventana en WezTerm  
-> y verifica que `direnv`, `asdf` y Nix permanecen activos en cualquier proyecto reproducible.
+> **Conclusión:**  
+> Git ahora forma parte de tu capa personal declarativa.  
+> Cada commit, diff o alias que ejecutes está respaldado por Nix, sin configuraciones globales manuales.  
+> “Nada global. Todo declarativo, reproducible, portable, controlado por ti.”
 
 ---

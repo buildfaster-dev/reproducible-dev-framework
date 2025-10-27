@@ -559,7 +559,7 @@ construirás tu **capa personal declarativa (Home Manager)** y tu **primer entor
 
 ## 6.1 Home Manager: tu capa personal declarativa
 
-### 🌱 Propósito narrativo  
+### Propósito narrativo  
 Tu entorno reproducible no solo existe en los proyectos: también en ti.  
 Home Manager es tu **capa personal**, la parte del sistema que define cómo trabajas, no qué construyes.
 
@@ -574,7 +574,7 @@ Este paso no trata solo de instalar programas, sino de **diseñar la experiencia
 
 ---
 
-### ⚙️ Propósito técnico  
+### Propósito técnico  
 Home Manager controla todo lo que debe estar disponible **siempre que inicias sesión**:  
 editores, terminales, versionadores y helpers.  
 No se instalan globalmente: se **declaran**, se **aplican**, y viven dentro del **/nix/store**, bajo control total del sistema reproducible.
@@ -584,7 +584,7 @@ empezando por la más importante: **direnv**, la encargada de abrir las puertas 
 
 ---
 
-### 📁 Estructura base del entorno
+### Estructura base del entorno
 Hasta este punto ya deberías tener la siguiente estructura:
 
 ```
@@ -602,7 +602,7 @@ mientras que `lab` será donde vivirán tus **proyectos por flake**.
 
 ---
 
-### 🧩 Archivo completo: `~/dev/hm/flake.nix`
+### Archivo completo: `~/dev/hm/flake.nix`
 
 > Reemplaza `YOUR_USER` por tu usuario real (`echo $USER`).  
 > Este archivo es **auto-contenible**: puedes copiarlo y aplicarlo sin depender de configuraciones previas.
@@ -658,7 +658,7 @@ mientras que `lab` será donde vivirán tus **proyectos por flake**.
 
 ---
 
-### 🚀 Aplicar los cambios y recargar sesión
+### Aplicar los cambios y recargar sesión
 
 ```bash
 nix run home-manager/master -- switch --flake ~/dev/hm#YOUR_USER
@@ -673,7 +673,7 @@ exec $SHELL -l
 
 ---
 
-### 🧪 Validaciones rápidas
+### Validaciones rápidas
 
 Comprueba que `direnv` está correctamente instalado y en el PATH de Nix:
 
@@ -694,7 +694,7 @@ direnv is /nix/store/.../bin/direnv
 
 ---
 
-### 🧭 Prueba mínima del hook (sin flakes aún)
+### Prueba mínima del hook (sin flakes aún)
 
 Ahora vamos a comprobar que `direnv` puede detectar un archivo `.envrc`  
 y modificar el entorno de forma segura.
@@ -721,7 +721,7 @@ echo "$DIRENV_TEST"
 
 ---
 
-### ⚠️ Errores comunes y solución
+### Errores comunes y solución
 
 | Síntoma | Causa probable | Solución |
 |---|---|---|
@@ -732,7 +732,7 @@ echo "$DIRENV_TEST"
 
 ---
 
-### 🌿 Cierre narrativo
+### Cierre narrativo
 
 Has dado tu primer paso dentro del **entorno personal reproducible**.  
 Ahora tu terminal **ya no es solo una ventana**, es un espacio que responde a tus decisiones.  
@@ -748,7 +748,7 @@ sin afectar tu entorno global.
 
 ## 6.2 ASDF — Binario declarativo y versiones por proyecto
 
-### 🌱 Propósito narrativo  
+### Propósito narrativo  
 Has abierto la puerta con Direnv; ahora necesitas un guardián del tiempo.  
 ASDF representa la memoria técnica de tus proyectos:  
 qué versión de cada lenguaje usas y en qué contexto.  
@@ -762,14 +762,14 @@ y cada repo se vuelve un entorno cerrado, autosuficiente y predecible.
 
 ---
 
-### ⚙️ Propósito técnico  
+### Propósito técnico  
 ASDF se instala de forma **declarativa con Home Manager**,  
 pero cada proyecto mantiene sus propias versiones dentro de su carpeta (`.tool-versions` y `.asdf/`).  
 Esto asegura un binario común —controlado por Nix— y datos locales —controlados por el repositorio—.
 
 ---
 
-### ⚙️ Pasos  
+### Pasos  
 
 1️⃣ Posiciónate en tu directorio de configuración de Home Manager (`~/dev/hm`):
 
@@ -807,7 +807,7 @@ exec $SHELL -l
 
 ---
 
-### 🧪 Validaciones
+### Validaciones
 
 Comprueba que ASDF proviene de **Nix** (no de Homebrew ni de una instalación manual):
 
@@ -864,7 +864,7 @@ nix run home-manager/master -- switch --flake ~/dev/hm#YOUR_USER
 
 ---
 
-### 💬 Reflexión narrativa  
+### Reflexión narrativa  
 
 Tu entorno ya no **instala** herramientas; **declara intenciones**.  
 ASDF ahora vive en tu capa personal declarativa — pero no impone versiones globales.  
@@ -875,4 +875,325 @@ Cada proyecto podrá declarar sus propias versiones, aisladas, limpias y reprodu
 
 ---
 
+## 6.3 Git — Identidad y control declarativo
+
+### Propósito narrativo  
+Has llegado al punto donde tu entorno empieza a tener una identidad propia.  
+Git no es solo una herramienta para hacer `commit` y `push`:  
+es la memoria de tu trabajo y la forma en que tus decisiones viven fuera de tu máquina.
+
+> “Cada commit es una huella.  
+> Si tu entorno es declarativo, tus huellas también deben serlo.”
+
+Aquí defines **quién eres como desarrollador dentro de este sistema reproducible**:
+- tu nombre,
+- tu correo,
+- tu rama inicial,
+- tu estilo de diff,
+- tus atajos mentales (`lg`, `undo`, `st`…).
+
+La idea es simple:  
+lo declaras una vez en Home Manager, y ese “tú” se puede reproducir en cualquier otra Mac sin volver a configurar Git a mano.
+
+Esto deja de ser “mi Mac está configurada así”  
+y se convierte en “yo trabajo así, donde sea que esté”.
+
+### Propósito técnico  
+Vamos a:
+1. Instalar Git usando Nix (no el Git que viene con macOS).
+2. Declarar tu configuración global de Git dentro del `flake.nix` de Home Manager.
+3. Declarar un archivo global de ignorados (`~/.config/git/ignore`) también desde Nix.
+4. Habilitar `delta` como visualizador de diffs moderno.
+5. Asegurar que tu PATH use el Git de Nix primero, no el del sistema.
+
+Resultado:  
+- Git queda bajo control declarativo.  
+- Tu identidad (`user.name`, `user.email`) vive en código.  
+- Tu estilo de trabajo se versiona.
+
+### Pasos técnicos
+
+#### 1. Editar tu flake de Home Manager (`~/dev/hm/flake.nix`)
+
+Abre el archivo `~/dev/hm/flake.nix`, localiza el módulo `{ config, pkgs, ... }: { ... }` que define tu entorno de usuario, y asegúrate de tener (o añade) este bloque completo:
+
+```nix
+{ config, pkgs, ... }: {
+  # 1. Asegura precedencia de PATH
+  # Queremos que Git use la versión declarada en Nix,
+  # NO el Git que viene con macOS en /usr/bin/git.
+  home.sessionPath = [
+    "${config.home.homeDirectory}/.nix-profile/bin"
+    "/nix/var/nix/profiles/default/bin"
+  ];
+
+  programs.zsh = {
+    enable = true;
+    initContent = ''
+      # Refuerza PATH al inicio de cada sesión interactiva.
+      export PATH="$HOME/.nix-profile/bin:/nix/var/nix/profiles/default/bin:$PATH"
+    '';
+  };
+
+  # 2. Instalar Git y herramientas relacionadas
+  # Estas herramientas viven en tu capa usuario (Home Manager),
+  # no en cada proyecto individual.
+  home.packages = with pkgs; [
+    git
+    git-lfs   # opcional: Large File Storage
+  ];
+
+  # 3. Configuración declarativa de Git con la API nueva de Home Manager
+  programs.git = {
+    enable = true;
+
+    # A partir de las versiones recientes de Home Manager,
+    # TODA la configuración va en `settings`.
+    settings = {
+      # Identidad
+      user.name = "Tu Nombre";
+      user.email = "tu.email@dominio.tld";
+
+      # Rama inicial y flujo seguro
+      init.defaultBranch = "main";
+      pull.ff = "only";        # solo fast-forward, evita merges automáticos raros
+      push.default = "simple"; # push directo a la rama asociada
+      fetch.prune = true;      # limpia refs remotas obsoletas
+
+      # Preferencias de entorno
+      core.autocrlf = "input"; # seguro en macOS/Linux
+      core.editor = "nvim";    # usa Neovim como editor para mensajes de commit
+      core.excludesFile = "${config.xdg.configHome}/git/ignore";
+
+      color.ui = "auto";
+
+      # Usa el llavero del sistema para credenciales HTTPS
+      credential.helper = "osxkeychain";
+
+      # Aliases personales
+      alias.co   = "checkout";
+      alias.br   = "branch";
+      alias.st   = "status -sb";
+      alias.ci   = "commit";
+      alias.ca   = "commit --amend";
+      alias.lg   = "log --graph --decorate --oneline --all";
+      alias.last = "log -1 HEAD";
+      alias.undo = "reset --soft HEAD~1";
+    };
+  };
+
+  # 4. Delta: diffs modernos, legibles y navegables
+  # Home Manager ahora lo maneja como módulo separado (`programs.delta`)
+  programs.delta = {
+    enable = true;
+    enableGitIntegration = true;
+    options = {
+      navigate = true;
+      line-numbers = true;
+      side-by-side = true;
+      syntax-theme = "Monokai Extended";
+    };
+  };
+
+  # 5. Archivo global de ignorados (también gestionado por Nix)
+  # Esto reemplaza el típico ~/.gitignore_global manual.
+  home.file."${config.xdg.configHome}/git/ignore".text = ''
+    # Archivos de sistema
+    .DS_Store
+
+    # Entornos locales
+    .env
+    .envrc
+
+    # Node / JS
+    node_modules/
+    dist/
+
+    # Elixir / Mix
+    _build/
+    deps/
+
+    # Editores / OS
+    .idea/
+    .vscode/
+    .fleet/
+  '';
+}
+```
+
+Qué estás logrando con esto:
+- El binario de `git` viene de Nix.
+- El PATH prioriza ese binario.
+- Tu identidad (`user.name`, `user.email`) está bajo `settings`, no en tu `~/.gitconfig` manual.
+- Tienes alias declarados (no improvisados).
+- `delta` transforma el diff para hacerlo legible.
+- Tu `~/.config/git/ignore` es generado por Home Manager, no por edición manual.
+
+Este bloque reemplaza por completo la configuración de Git que teníamos antes.  
+Ya no usamos:
+- `programs.git.userName`
+- `programs.git.userEmail`
+- `programs.git.extraConfig`
+- `programs.git.aliases`
+- `programs.git.delta`
+Todas esas opciones fueron renombradas en Home Manager y ahora viven bajo `settings` o en `programs.delta`.
+
+#### 2. Aplicar configuración declarativa
+
+Ejecuta:
+
+```bash
+nix run home-manager/master -- switch --flake ~/dev/hm#$(whoami)
+exec $SHELL -l
+```
+
+Qué hace esto:
+- Reconstruye tu entorno declarativo de usuario.
+- Escribe (o actualiza) `~/.config/git/config` basado en `settings`.
+- Crea/actualiza `~/.config/git/ignore`.
+- Asegura que el Git de Nix sea visible en tu nueva sesión shell.
+
+Si abriste una nueva ventana de WezTerm justo después, mejor todavía.
+
+#### 3. Validaciones rápidas
+
+Ahora vamos a comprobar tres cosas:
+1. Que estás usando el Git que viene de Nix.
+2. Que la identidad está aplicada.
+3. Que el archivo global de ignorados existe.
+
+Ejecuta:
+
+```bash
+which -a git
+git --version
+git config --global --get user.name
+git config --global --get user.email
+git config --global --get init.defaultBranch
+git config --global --get core.excludesFile
+```
+
+Salida esperada (ejemplo):
+
+```text
+/Users/tu_usuario/.nix-profile/bin/git
+/usr/bin/git
+git version 2.51.0
+Tu Nombre
+tu.email@dominio.tld
+main
+/Users/tu_usuario/.config/git/ignore
+```
+
+Interpretación:
+- Si ves primero `/Users/tu_usuario/.nix-profile/bin/git`, perfecto.
+- Si ves primero `/usr/bin/git`, significa que sigue tomando el Git que viene con macOS → abre una nueva sesión de terminal para que los cambios del PATH tomen efecto.
+
+---
+
+#### 4. Confirmar archivo global de ignorados
+
+Queremos confirmar dos cosas:
+- Que el archivo fue creado por Home Manager.
+- Que Git sabe que debe usarlo.
+
+Ejecuta:
+
+```bash
+test -f ~/.config/git/ignore && echo "OK: ignore presente" || echo "FALTA ignore"
+head -n 10 ~/.config/git/ignore
+```
+
+Salida esperada (ejemplo):
+
+```text
+OK: ignore presente
+# Archivos de sistema
+.DS_Store
+.env
+.envrc
+node_modules/
+dist/
+...
+```
+
+Esto demuestra:
+- Que Home Manager generó `~/.config/git/ignore`.
+- Que `core.excludesFile` lo está apuntando.
+
+Nada de esto se hizo editando `~/.gitconfig` a mano: todo viene del `flake.nix`.
+
+---
+
+#### 5. Validar delta y diffs modernos
+
+`delta` es el motor visual de diffs que hace que `git diff` sea legible.
+
+Validemos que está integrado correctamente:
+
+```bash
+git config --global --get delta.side-by-side
+git config --global --get delta.line-numbers
+git config --global --get delta.navigate
+```
+
+Salida esperada (ejemplo):
+
+```text
+true
+true
+true
+```
+
+Esto confirma que `programs.delta` se aplicó y que Git ya sabe usar `delta`.
+
+Ahora haz un diff cualquiera dentro de un repo con cambios sin commitear:
+
+```bash
+git diff
+```
+
+Deberías ver:
+- colores,
+- números de línea,
+- columnas lado a lado (`side-by-side`),
+- un layout que ya no parece el diff crudo estándar.
+
+### Problemas comunes
+
+| Síntoma                                                   | Causa probable                                                                 | Solución                                                                                       |
+|----------------------------------------------------------|-------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------|
+| `git --version` muestra “Apple Git-154”                  | Tu shell sigue usando `/usr/bin/git` en vez de `~/.nix-profile/bin/git`      | Cierra y vuelve a abrir WezTerm, o asegúrate de que `home.sessionPath` y `programs.zsh.initContent` estén en tu flake. |
+| `fatal: bad config line … ~/.config/git/ignore`          | Se intentó usar `programs.git.includes` o mezclaste config vieja             | Elimina cualquier uso de `programs.git.includes`. Debes usar solo `core.excludesFile` en `settings`. |
+| `git lfs` no existe                                      | No agregaste `git-lfs` a `home.packages`                                     | Añade `git-lfs` y vuelve a aplicar Home Manager.                                              |
+| `delta` sin efecto en `git diff`                         | No declaraste `programs.delta.enableGitIntegration = true;`                  | Asegúrate de tener el bloque `programs.delta` exactamente como está arriba y vuelve a aplicar. |
+| El primer `which -a git` sigue apuntando a `/usr/bin/git`| La sesión actual sigue con PATH viejo                                        | Abre una nueva sesión de WezTerm (o `exec $SHELL -l`) y vuelve a ejecutar `which -a git`.     |
+
+### Resultado esperado
+
+Al final de este paso, deberías poder afirmar todo esto como verdadero:
+
+| Validación                                                                                 | Estado esperado |
+|--------------------------------------------------------------------------------------------|-----------------|
+| El binario activo de `git` viene de Nix (`~/.nix-profile/bin/git` o `/nix/store/.../git`)  | ✅              |
+| `git --version` devuelve la versión de Nix, no “Apple Git-154”                             | ✅              |
+| `git config --global --list` ya incluye tu nombre, correo y rama `main`                    | ✅              |
+| `~/.config/git/ignore` existe y Git lo está usando como `core.excludesFile`               | ✅              |
+| `git diff` usa `delta` con columnas lado a lado, números de línea y colores                | ✅              |
+
+Esto significa algo importante:
+tu identidad como desarrollador ya está descrita en un archivo declarativo (`flake.nix`),
+no en configuraciones manuales y frágiles.
+
+Eres portable.
+
+En otra Mac, aplicas la misma configuración y obtienes:
+- tu Git,
+- tu estilo de diff,
+- tu nombre,
+- tu editor,
+- tu forma de trabajar.
+
+Nada global.  
+Todo declarativo, reproducible, portable, controlado por ti.
 
