@@ -1336,3 +1336,200 @@ ya incluye un toolbelt declarativo y reproducible.
 > No estás “instalando globalmente”; estás declarando tus herramientas base,  
 > las que te acompañan en cualquier proyecto.  
 > Así, tu editor no solo existe dentro de Nix, sino contigo.
+
+## 🧩 Paso 6.5 — Zellij: estructura visual y foco declarativo
+
+### 🎞 Propósito narrativo
+Después de configurar Neovim bajo Home Manager, toca dar forma **visual** al entorno.  
+Zellij es el plano donde tu terminal se convierte en un **espacio ordenado, modular y declarativo**.  
+No se trata de abrir terminales, sino de **describir** el entorno en el que quieres trabajar.  
+
+> “Nada global. Todo declarativo, reproducible, portable, controlado por ti.”
+
+---
+
+### ⚙️ Propósito técnico
+Declarar la instalación y configuración base de **Zellij** dentro del archivo `~/dev/hm/flake.nix`, gestionado por Home Manager.  
+Zellij actúa como multiplexor de terminales declarativo, permitiendo definir paneles, pestañas, atajos y temas visuales de manera reproducible y controlada por Nix.  
+Su integración complementa la capa visual del framework junto con Neovim y WezTerm.
+
+---
+
+### 🧱 1. Declaración declarativa en `/dev/hm/flake.nix`
+Agrega el módulo de **Zellij** dentro del bloque de usuario gestionado por Home Manager.  
+Esto asegura que su instalación, configuración y tema visual se apliquen bajo control declarativo.
+
+```nix
+# Declaración dentro de modules = [ ({ config, pkgs, ... }: { ... }) ];
+programs.zellij = {
+  enable = true;
+  enableZshIntegration = true;
+  settings = {
+    theme = "tokyo-night";
+    pane_frames = true;
+    mirror_session = false;
+    simplified_ui = true;
+    ui = {
+      pane_frames = { rounded_corners = true; };
+    };
+  };
+};
+```
+
+Una vez guardados los cambios, aplica la configuración declarativa para activar el entorno visual:
+
+```bash
+nix run home-manager/master -- switch --flake ~/dev/hm#<usuario>
+exec $SHELL -l
+```
+
+Durante este proceso, Nix descargará el binario de Zellij desde la Nix Store, generará la configuración bajo `~/.config/zellij` y añadirá el ejecutable a tu perfil declarativo en `~/.nix-profile/bin/zellij`.
+
+---
+
+### 🧩 2. Verificación inicial del entorno
+Después de aplicar los cambios, valida que Zellij fue instalado correctamente y que el binario se encuentra disponible en el PATH:
+
+```bash
+which zellij
+zellij --version
+```
+
+Deberías obtener una salida similar a:
+
+```
+/Users/<usuario>/.nix-profile/bin/zellij
+zellij 0.41.1
+```
+
+Esto confirma que Zellij está gestionado completamente por Nix y no depende de configuraciones globales.
+
+---
+
+### 🧩 3. Layout reproducible por proyecto
+
+Hasta este punto, Zellij está instalado y gestionado declarativamente.  
+Ahora vamos a crear **nuestro primer layout reproducible**, un archivo que describe la estructura visual de trabajo y que puede versionarse junto al código del proyecto.
+
+---
+
+#### 📁 3.1 Crear un layout declarativo
+
+Dentro de tu espacio de desarrollo (`~/dev/`), cada subdirectorio representa un contexto o dominio.  
+En este caso, usaremos la carpeta `lab` como espacio experimental:
+
+```bash
+cd ~/dev/lab
+mkdir -p zellij-demo/.zellij
+cd zellij-demo
+touch .zellij/dev-layout.kdl
+```
+
+Edita el archivo con el siguiente contenido:
+
+```kdl
+layout {
+  tab name="dev" {
+    pane command="nvim" cwd="."
+    pane split_direction="vertical" command="mix phx.server"
+  }
+
+  tab name="shell" {
+    pane
+  }
+}
+```
+
+Este layout define dos **tableros de trabajo declarativos**:
+
+- `dev` → abre Neovim y ejecuta el servidor de desarrollo de Phoenix.  
+- `shell` → mantiene una consola libre para comandos adicionales.  
+
+Cada elemento está descrito como parte de la sesión; no hay nada implícito ni dependiente del estado anterior.
+
+---
+
+#### 🧩 3.2 Ejecutar el layout reproducible
+
+Ejecuta el layout desde el directorio del proyecto:
+
+```bash
+zellij --layout .zellij/dev-layout.kdl
+```
+
+Al hacerlo, Zellij construye una sesión nueva basada únicamente en el archivo declarado.  
+No importa si antes tenías otras sesiones abiertas: este layout siempre producirá el mismo resultado.  
+Eso es reproducibilidad visual — la sesión se **declara**, no se recuerda.
+
+> “Nada global. Todo declarativo, reproducible, portable, controlado por ti.”
+
+---
+
+#### 🔍 3.3 Comprender lo que ocurre
+
+Al ejecutar el layout, Zellij:
+
+1. Lee la definición en `.zellij/dev-layout.kdl`.  
+2. Crea los tabs y paneles declarados, en orden.  
+3. Ejecuta los comandos definidos (`nvim`, `mix phx.server`).  
+4. Aplica la configuración visual declarada en el flake (`theme`, `rounded_corners`, etc.).  
+
+Este proceso es **determinista**:  
+puedes borrar la carpeta `.config/zellij`, reinstalar el entorno, o cambiar de máquina, y el resultado será idéntico.  
+El layout se convierte en un **artefacto reproducible de entorno**, parte viva del proyecto.
+
+---
+
+#### 💾 3.4 Versionar el layout
+
+Agrega el archivo al repositorio para compartirlo con otros desarrolladores:
+
+```bash
+git add .zellij/dev-layout.kdl
+git commit -m "feat: add reproducible Zellij layout for lab zellij-demo"
+```
+
+Así, cualquier persona del equipo podrá recrear el mismo entorno visual ejecutando:
+
+```bash
+cd ~/dev/lab/zellij-demo
+zellij --layout .zellij/dev-layout.kdl
+```
+
+Tu flujo de trabajo deja de ser una preferencia personal y pasa a formar parte del código fuente reproducible del proyecto.
+
+---
+
+### 🧩 4. Integración declarativa con Direnv
+
+Zellij se integra naturalmente con **Direnv**, que carga las variables de entorno del proyecto antes de abrir la sesión.  
+Esto asegura que cada layout se ejecute dentro del entorno correcto, con las variables y dependencias necesarias ya disponibles.
+
+Crea o edita el archivo `.envrc` dentro del mismo proyecto:
+
+```bash
+cd ~/dev/lab/zellij-demo
+echo 'export MIX_ENV=dev' > .envrc
+direnv allow
+```
+
+Ahora, al entrar a este directorio, Direnv cargará automáticamente las variables del entorno, y al abrir Zellij, el layout declarativo se levantará con el contexto adecuado:
+
+```bash
+cd ~/dev/lab/zellij-demo
+zellij --layout .zellij/dev-layout.kdl
+```
+
+Cada sesión de Zellij se ejecuta dentro del entorno correcto, de forma **declarativa y predecible**, sin configuraciones globales ni pasos manuales.
+
+> “Tu entorno visual es un artefacto reproducible.  
+> Lo declaras, lo compartes y lo regeneras, en cualquier máquina.”
+
+---
+
+### 🧭 5. Filosofía visual
+Zellij pertenece al **nivel visual** del Reproducible Dev Framework.  
+No se configura manualmente, se **declara** y se **versiona** como cualquier otro componente del sistema.  
+Cada layout es una narrativa reproducible que puede regenerarse en cualquier máquina y momento.
+
+> En lugar de “abrir terminales”, describes el espacio donde trabajas.

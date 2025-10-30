@@ -683,3 +683,154 @@ gestionados por Nix, y el entorno funciona conforme a los principios del sistema
 
 > Nada global.  
 > Todo declarativo, reproducible, portable, controlado por ti.
+
+## 🧩 Paso 9 — Validación: Zellij declarativo y reproducible
+
+### 🎯 Objetivo de validación
+Confirmar que **Zellij** fue instalado y configurado de forma **declarativa** a través de Home Manager,  que su binario se encuentra correctamente vinculado al perfil del usuario,  
+y que los **layouts reproducibles** funcionan de manera determinista dentro del entorno `~/dev/lab/zellij-demo`.
+
+---
+
+### 9.1 Validar instalación declarativa de Zellij
+
+Ejecutar los siguientes comandos para verificar que el binario fue instalado por Nix y gestionado por Home Manager, registrando la salida en el archivo de validación:
+
+```bash
+which zellij | tee -a ~/nix-setup-validation.log
+zellij --version | tee -a ~/nix-setup-validation.log
+```
+
+✅ **Salida esperada:**
+
+```
+/Users/<usuario>/.nix-profile/bin/zellij
+zellij 0.41.x
+```
+
+Esto confirma que Zellij fue instalado desde la Nix Store  
+y no mediante ningún gestor de paquetes externo (como brew o cargo).
+
+---
+
+### 9.2 Validar configuración generada por Home Manager
+
+Verifica que Home Manager haya creado los archivos de configuración bajo control declarativo:
+
+```bash
+ls -l ~/.config/zellij | tee -a ~/nix-setup-validation.log
+```
+
+✅ **Salida esperada (aproximada):**
+
+```
+config.kdl
+layout_templates/
+themes/
+```
+
+Esto asegura que la configuración fue generada y no creada manualmente.  
+El archivo `config.kdl` debe reflejar los parámetros definidos en `~/dev/hm/flake.nix`  
+(`theme`, `pane_frames`, `simplified_ui`, etc.).
+
+---
+
+### 9.3 Validar ejecución reproducible del layout
+
+Dentro del laboratorio declarativo, ejecuta el layout reproducible:
+
+```bash
+cd ~/dev/lab/zellij-demo
+zellij --layout .zellij/dev-layout.kdl | tee -a ~/nix-setup-validation.log
+```
+
+✅ **Comportamiento esperado:**
+
+- Se abre una sesión con dos tabs:  
+  - **dev** → contiene dos paneles: Neovim y el servidor Phoenix.  
+  - **shell** → una consola vacía.  
+- La interfaz visual refleja el tema declarado (`tokyo-night`, esquinas redondeadas).  
+- El entorno no depende de configuraciones previas o manuales.
+
+Para cerrar la sesión y validar su regeneración:
+
+1. Cierra Zellij (`Ctrl + q` o `zellij action quit`).  
+2. Reejecuta el mismo comando anterior.  
+3. La sesión debe recrearse idéntica.  
+
+Esto confirma que el layout es **determinista** y no depende del estado anterior del terminal.
+
+---
+
+### 9.4 Validar integración con Direnv
+
+Comprueba que las variables de entorno del proyecto se cargan automáticamente antes de iniciar Zellij.
+
+```bash
+cd ~/dev/lab/zellij-demo
+direnv status | tee -a ~/nix-setup-validation.log
+```
+
+✅ **Salida esperada:**
+
+```
+direnv: (exported MIX_ENV=dev)
+```
+
+Luego, abre Zellij:
+
+```bash
+zellij --layout .zellij/dev-layout.kdl
+```
+
+Abre un nuevo panel dentro de Zellij y ejecuta:
+
+```bash
+echo $MIX_ENV | tee -a ~/nix-setup-validation.log
+```
+
+✅ **Resultado esperado:**
+
+```
+dev
+```
+
+Esto confirma que Direnv cargó el entorno correctamente  
+y que las variables se mantienen disponibles dentro de la sesión declarativa de Zellij.
+
+---
+
+### 9.5 Validar estructura reproducible en el repositorio
+
+Comprueba que el archivo `.zellij/dev-layout.kdl` está versionado en Git y accesible para otros desarrolladores:
+
+```bash
+cd ~/dev/lab/zellij-demo
+git status | tee -a ~/nix-setup-validation.log
+```
+
+✅ **Salida esperada:**
+
+```
+nothing to commit, working tree clean
+```
+
+Esto confirma que el layout reproducible forma parte del repositorio  
+y puede compartirse o regenerarse en cualquier entorno.
+
+---
+
+### 9.6 Validación conceptual
+
+El entorno visual fue elevado al mismo nivel de declaratividad que el resto del sistema.  
+Zellij no se configura, **se declara**.  
+Sus layouts ya no son preferencias personales, sino **artefactos reproducibles**  
+que definen cómo se trabaja, no solo qué se instala.
+
+> “Tu entorno ya no vive en tu memoria, sino en tu código.”
+
+---
+
+✅ **Validación completada:**  
+El paso 9 (Zellij declarativo y reproducible) fue ejecutado y verificado con éxito.  
+Todas las salidas quedaron registradas en `~/nix-setup-validation.log`.
